@@ -1,6 +1,6 @@
 [
     {
-      "origin": ["http://localhost:3000"],
+      "origin": ["https://nexhome-my-maps.onrender.com"],
       "method": ["GET"],
       "maxAgeSeconds": 3600
     }
