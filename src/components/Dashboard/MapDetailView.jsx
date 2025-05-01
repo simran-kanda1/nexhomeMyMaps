@@ -1,4 +1,3 @@
-//MapDetailView.jsx
 import React, { useState, useEffect } from 'react';
 import { 
     collection, 
@@ -12,7 +11,7 @@ import {
   } from 'firebase/firestore';
 import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
 import { firestore } from '../../config/firebase';
-import { Edit2, ArrowLeft } from 'lucide-react';
+import { Edit2, ArrowLeft, MapPin, Trash2 } from 'lucide-react';
 import '../../styles/Dashboard.css';
 
 // Geocoding utility function
@@ -35,6 +34,40 @@ const geocodeAddress = async (address) => {
   });
 };
 
+// Define marker color options - Modern color palette
+const markerColors = {
+  red: '#F44336',     // Material Design Red
+  orange: '#FF9800',  // Material Design Orange
+  green: '#4CAF50',   // Material Design Green
+  blue: '#2196F3',    // Material Design Blue
+  purple: '#9C27B0'   // Material Design Purple
+};
+
+// Custom Modern Map Pin Component
+const CustomMarker = ({ position, color = 'red', onClick }) => {
+  // Modern SVG pin design with centered dot
+  const svgMarker = {
+    path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+    fillColor: markerColors[color] || markerColors.red,
+    fillOpacity: 1,
+    strokeWeight: 1.5,
+    strokeColor: '#FFFFFF',
+    rotation: 0,
+    scale: 2,
+    anchor: new window.google.maps.Point(12, 22),
+    labelOrigin: new window.google.maps.Point(12, 9)
+  };
+
+  return (
+    <Marker
+      position={position}
+      icon={svgMarker}
+      onClick={onClick}
+      animation={window.google.maps.Animation.DROP}
+    />
+  );
+};
+
 const EditProjectModal = ({ 
     isOpen, 
     onClose, 
@@ -44,6 +77,7 @@ const EditProjectModal = ({
   }) => {
     const [clientName, setClientName] = useState('');
     const [address, setAddress] = useState('');
+    const [markerColor, setMarkerColor] = useState('red');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -53,6 +87,7 @@ const EditProjectModal = ({
       if (project) {
         setClientName(project.clientName || '');
         setAddress(project.address || '');
+        setMarkerColor(project.markerColor || 'red');
       }
     }, [project]);
   
@@ -70,15 +105,12 @@ const EditProjectModal = ({
           ...project,
           clientName: clientName.trim(),
           address: address.trim(),
+          markerColor: markerColor,
           point: point
         };
   
         // Update project in Firestore
-        await onUpdateProject({
-            ...project,
-            clientName: clientName.trim(),
-            address: address.trim()
-          });
+        await onUpdateProject(updatedProject);
   
         // Reset and close
         onClose();
@@ -124,6 +156,21 @@ const EditProjectModal = ({
                   onChange={(e) => setAddress(e.target.value)}
                   required
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="markerColor">Marker Color</label>
+                <div className="color-selector">
+                  {Object.keys(markerColors).map(color => (
+                    <div 
+                      key={color} 
+                      className={`color-option ${markerColor === color ? 'selected' : ''}`}
+                      style={{ backgroundColor: markerColors[color] }}
+                      onClick={() => setMarkerColor(color)}
+                    >
+                      {markerColor === color && <span className="checkmark">✓</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
               {error && <div className="error-message">{error}</div>}
               <div className="modal-actions">
@@ -186,6 +233,7 @@ const EditProjectModal = ({
 const NewProjectModal = ({ isOpen, onClose, onAddProject, mapName }) => {
   const [clientName, setClientName] = useState('');
   const [address, setAddress] = useState('');
+  const [markerColor, setMarkerColor] = useState('red');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -203,6 +251,7 @@ const NewProjectModal = ({ isOpen, onClose, onAddProject, mapName }) => {
         mapName: mapName,
         clientName: clientName.trim(),
         address: address.trim(),
+        markerColor: markerColor,
         point: point
       };
 
@@ -212,6 +261,7 @@ const NewProjectModal = ({ isOpen, onClose, onAddProject, mapName }) => {
       // Reset form and close modal
       setClientName('');
       setAddress('');
+      setMarkerColor('red');
       onClose();
     } catch (err) {
       setError(err.message);
@@ -247,16 +297,56 @@ const NewProjectModal = ({ isOpen, onClose, onAddProject, mapName }) => {
               required
             />
           </div>
+          <div className="form-group">
+            <label htmlFor="markerColor">Marker Color</label>
+            <div className="color-selector">
+              {Object.keys(markerColors).map(color => (
+                <div 
+                  key={color} 
+                  className={`color-option ${markerColor === color ? 'selected' : ''}`}
+                  style={{ backgroundColor: markerColors[color] }}
+                  onClick={() => setMarkerColor(color)}
+                >
+                  {markerColor === color && <span className="checkmark">✓</span>}
+                </div>
+              ))}
+            </div>
+          </div>
           {error && <div className="error-message">{error}</div>}
           <div className="modal-actions">
-            <button type="button" onClick={onClose} disabled={isLoading}>
+            <button type="button" onClick={onClose} className="cancel-button" disabled={isLoading}>
               Cancel
             </button>
-            <button type="submit" disabled={isLoading}>
+            <button type="submit" className="update-button" disabled={isLoading}>
               {isLoading ? 'Adding...' : 'Submit'}
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+// Info Window Edit Component - Modernized
+const InfoWindowContent = ({ project, onEdit, onDelete }) => {
+  return (
+    <div className="info-window-content">
+      <h3>{project.clientName}</h3>
+      <p>{project.address || 'No address provided'}</p>
+      
+      <div className="info-window-actions">
+        <button 
+          className="info-window-button edit-button"
+          onClick={onEdit}
+        >
+          <Edit2 size={16} /> Edit
+        </button>
+        <button 
+          className="info-window-button delete-button"
+          onClick={onDelete}
+        >
+          <Trash2 size={16} /> Delete
+        </button>
       </div>
     </div>
   );
@@ -269,6 +359,8 @@ const MapDetailView = ({ map, onBack }) => {
   const [isEditProjectModalOpen, setIsEditProjectModalOpen] = useState(false);
   const [mapCenter, setMapCenter] = useState({ lat: 44.6488, lng: -63.5752 }); // Default to Halifax
   const [isLoading, setIsLoading] = useState(true);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
 
   // Troubleshooting function to handle missing point values
   const troubleshootProjectPoints = async (projectsData) => {
@@ -337,7 +429,8 @@ const MapDetailView = ({ map, onBack }) => {
         // Convert snapshot to array of projects
         const projectsData = querySnapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
+          markerColor: doc.data().markerColor || 'red' // Set default color if not present
         }));
 
         // Troubleshoot missing points
@@ -390,6 +483,7 @@ const MapDetailView = ({ map, onBack }) => {
       await updateDoc(projectRef, {
         clientName: updatedProject.clientName,
         address: updatedProject.address,
+        markerColor: updatedProject.markerColor,
         point: updatedProject.point
       });
 
@@ -452,6 +546,21 @@ const MapDetailView = ({ map, onBack }) => {
     }
   };
 
+  // Function to handle marker click on the map
+  const handleMarkerClick = (project) => {
+    setSelectedProject(project);
+    setMapCenter({
+      lat: Number(project.point[0]),
+      lng: Number(project.point[1])
+    });
+  };
+
+  // Function to confirm deletion from info window
+  const confirmDelete = (project) => {
+    setProjectToDelete(project);
+    setShowDeleteConfirmation(true);
+  };
+
   return (
     <div className="map-detail-container">
       <div className="map-detail-sidebar">
@@ -465,7 +574,7 @@ const MapDetailView = ({ map, onBack }) => {
           onClick={() => setIsNewProjectModalOpen(true)}
           className="add-project-button"
         >
-          Add New Entry
+          <MapPin size={16} /> Add New Entry
         </button>
         <div className="project-list">
           {isLoading ? (
@@ -480,7 +589,10 @@ const MapDetailView = ({ map, onBack }) => {
                   className="project-item-name"
                   onClick={() => handleProjectClick(project)}
                 >
-                  <h3>{project.clientName}</h3>
+                  <div className="project-item-header">
+                    <div className="marker-dot" style={{ backgroundColor: markerColors[project.markerColor || 'red'] }}></div>
+                    <h3>{project.clientName}</h3>
+                  </div>
                   {project.noAddress ? (
                     <p className="warning">No Address Found</p>
                   ) : (
@@ -509,23 +621,30 @@ const MapDetailView = ({ map, onBack }) => {
           mapContainerClassName="google-map"
           center={mapCenter}
           zoom={10}
+          options={{
+            styles: [
+              {
+                featureType: "poi",
+                elementType: "labels",
+                stylers: [{ visibility: "off" }]
+              }
+            ],
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true
+          }}
         >
           {projects
             .filter(project => project.point)
             .map(project => (
-              <Marker
+              <CustomMarker
                 key={project.id}
                 position={{ 
                   lat: Number(project.point[0]), 
                   lng: Number(project.point[1]) 
                 }}
-                onClick={() => {
-                  setSelectedProject(project);
-                  setMapCenter({
-                    lat: Number(project.point[0]),
-                    lng: Number(project.point[1])
-                  });
-                }}
+                color={project.markerColor || 'red'}
+                onClick={() => handleMarkerClick(project)}
               />
             ))}
           {selectedProject && selectedProject.point && (
@@ -536,10 +655,11 @@ const MapDetailView = ({ map, onBack }) => {
               }}
               onCloseClick={() => setSelectedProject(null)}
             >
-              <div>
-                <h3>{selectedProject.clientName}</h3>
-                <p>{selectedProject.address || 'No address provided'}</p>
-              </div>
+              <InfoWindowContent
+                project={selectedProject}
+                onEdit={() => setIsEditProjectModalOpen(true)}
+                onDelete={() => confirmDelete(selectedProject)}
+              />
             </InfoWindow>
           )}
         </GoogleMap>
@@ -551,7 +671,7 @@ const MapDetailView = ({ map, onBack }) => {
         onAddProject={handleAddProject}
         mapName={map.name}
       />
-      {/* Edit Project Modal */}
+      
       <EditProjectModal
         isOpen={isEditProjectModalOpen}
         onClose={() => setIsEditProjectModalOpen(false)}
@@ -559,6 +679,33 @@ const MapDetailView = ({ map, onBack }) => {
         onUpdateProject={handleUpdateProject}
         onDeleteProject={handleDeleteProject}
       />
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmation && (
+        <div className="modal-overlay">
+          <div className="modal-content confirmation-modal">
+            <h2>Confirm Deletion</h2>
+            <p>Are you sure you want to delete {projectToDelete?.clientName}? This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button 
+                className="cancel-button" 
+                onClick={() => setShowDeleteConfirmation(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="delete-button" 
+                onClick={() => {
+                  handleDeleteProject(projectToDelete.id);
+                  setShowDeleteConfirmation(false);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
