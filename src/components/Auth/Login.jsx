@@ -10,7 +10,7 @@ const Login = ({ onLogin }) => {
   const handleLogin = () => {
     const user = { email: "nexhome911@gmail.com", password: "@nexhome" }; // Replace with your credentials
     const user1 = { email: "Nexhomesales1@nexhome.ca", password: "Nexhome1" };
-    const user2 = { email: "zhala@nexhome.ca", password: "Nexhome2" };
+    const user2 = { email: "Zhala@nexhome.ca", password: "Nexhome2" };
     if (email === user.email && password === user.password) {
       onLogin(user.email);
     } else if (email === user1.email && password === user1.password) {
