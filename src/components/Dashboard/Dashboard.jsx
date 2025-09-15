@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { LoadScript } from '@react-google-maps/api';
 import { firestore } from '../../config/firebase';
 import MapCard from './MapCard';
 import MapDetailView from './MapDetailView';
+import AddMapModal from './AddMapModal';
+import { Plus } from 'lucide-react';
 import '../../styles/Dashboard.css';
 import '../../styles/Project.css';
 import logo from '../Auth/logo.png';
@@ -16,6 +18,7 @@ const Dashboard = ({ onLogout }) => {
   const [selectedMap, setSelectedMap] = useState(null);
   const [isMapScriptLoaded, setIsMapScriptLoaded] = useState(false);
   const [scriptKey, setScriptKey] = useState(Date.now());
+  const [isAddMapModalOpen, setIsAddMapModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchMaps = async () => {
@@ -40,6 +43,17 @@ const Dashboard = ({ onLogout }) => {
 
   const handleBack = () => {
     setSelectedMap(null);
+  };
+
+  const handleAddMap = async (newMap) => {
+    try {
+      const mapsRef = collection(firestore, 'Maps');
+      const docRef = await addDoc(mapsRef, newMap);
+      setMaps([...maps, { ...newMap, id: docRef.id }]);
+    } catch (error) {
+      console.error("Error adding map:", error);
+      throw error;
+    }
   };
 
   const handleMapScriptLoad = () => {
@@ -118,21 +132,37 @@ const Dashboard = ({ onLogout }) => {
         onError={handleMapScriptError}
       >
         {!selectedMap ? (
-          <div className="maps-grid">
-            {maps.map(map => (
-              <MapCard
-                key={map.id}
-                map={map}
-                onSelect={() => handleMapSelect(map)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="add-map-section">
+              <button
+                onClick={() => setIsAddMapModalOpen(true)}
+                className="add-map-button"
+              >
+                <Plus size={16} /> Add New Map
+              </button>
+            </div>
+            <div className="maps-grid">
+              {maps.map(map => (
+                <MapCard
+                  key={map.id}
+                  map={map}
+                  onSelect={() => handleMapSelect(map)}
+                />
+              ))}
+            </div>
+          </>
         ) : (
           <MapDetailView
             map={selectedMap}
             onBack={handleBack}
           />
         )}
+        
+        <AddMapModal
+          isOpen={isAddMapModalOpen}
+          onClose={() => setIsAddMapModalOpen(false)}
+          onAddMap={handleAddMap}
+        />
       </LoadScript>
     </div>
   );
